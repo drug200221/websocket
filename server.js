@@ -48,9 +48,19 @@ io.on('connection', (socket) => {
 
     socket.on('private message', ({message}) => {
         const targetSocket = getSocketByUserId(message.recipientId);
-        console.log('targetSocket:', targetSocket.handshake.auth);
         if (targetSocket) {
             targetSocket.emit('private message', {
+                from: socket.userId,
+                message,
+            });
+        }
+    });
+
+    socket.on('read messages', ({message}) => {
+        const targetSocket = getSocketByUserId(contact.id);
+        console.log("read messages");
+        if (targetSocket) {
+            targetSocket.emit('read messages', {
                 from: socket.userId,
                 message,
             });
