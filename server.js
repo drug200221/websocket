@@ -57,8 +57,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('read messages', ({message}) => {
-        const targetSocket = getSocketByUserId(contact.id);
-        console.log("read messages");
+        const targetSocket = getSocketByUserId(message.sender.id);
         if (targetSocket) {
             targetSocket.emit('read messages', {
                 from: socket.userId,
