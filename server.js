@@ -1,8 +1,13 @@
 const httpServer = require("http").createServer();
+
+const hostname = "192.168.3.77";
+// const hostname = "localhost";
+const PORT = process.env.PORT || 3000;
+const clientPort = 4200;
+
 const io = require("socket.io")(httpServer, {
     cors: {
-        // origin: "http://192.168.3.77:4200",
-        origin: "http://localhost:4200",
+        origin: `http://${hostname}:${clientPort}`,
     },
 });
 const { v4: uuidv4 } = require('uuid');
@@ -43,8 +48,8 @@ io.on('connection', (socket) => {
     socket.broadcast.emit("user connected", {
         userId: socket.userId,
         connected: true,
-        messages: [],
     });
+    console.log(sessionStore.values())
 
     socket.on('private message', ({message}) => {
         const targetSocket = getSocketByUserId(message.recipientId);
@@ -92,10 +97,6 @@ function refreshUsers() {
     const users = sessions.map(({ userId, connected }) => ({ userId, connected }));
     io.emit('users', users);
 }
-
-// const hostname = "192.168.3.77";
-const hostname = "localhost";
-const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, hostname, () =>
     console.log(`server listening at http://${hostname}:${PORT}`)
