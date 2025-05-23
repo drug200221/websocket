@@ -51,11 +51,12 @@ io.on('connection', (socket) => {
     });
     console.log(sessionStore.values())
 
-    socket.on('private message', ({message}) => {
-        const targetSocket = getSocketByUserId(message.recipientId);
+    socket.on('message', ({recipientId, message }) => {
+        const targetSocket = getSocketByUserId(recipientId);
         if (targetSocket) {
-            targetSocket.emit('private message', {
+            targetSocket.emit('message', {
                 from: socket.userId,
+                recipientId,
                 message,
             });
         }
