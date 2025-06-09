@@ -72,6 +72,16 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('create chat', ({chat}) => {
+        const targetSocket = getSocketByUserId(chat.userId);
+        if (targetSocket) {
+            targetSocket.emit('create chat', {
+                from: chat.userId,
+                chat
+            });
+        }
+    });
+
     socket.on("disconnect", async () => {
         const sockets = await io.in(socket.userId).allSockets();
         if (sockets.size === 0) {
