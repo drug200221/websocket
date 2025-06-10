@@ -73,10 +73,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('create chat', ({chat}) => {
-        const targetSocket = getSocketByUserId(chat.userId);
+        const targetSocket = getSocketByUserId(chat.user.id);
         if (targetSocket) {
             targetSocket.emit('create chat', {
-                from: chat.userId,
+                from: chat.user.id,
                 chat
             });
         }
