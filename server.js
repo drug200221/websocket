@@ -1,6 +1,6 @@
 const httpServer = require("http").createServer();
 
-const hostname = "192.168.3.77";
+const hostname = "192.168.1.216";
 // const hostname = "localhost";
 const PORT = process.env.PORT || 3000;
 const clientPort = 4200;
@@ -51,32 +51,60 @@ io.on('connection', (socket) => {
     });
     console.log(sessionStore.values())
 
-    socket.on('message', ({recipientId, message }) => {
+    socket.on('message', ({recipientId, chat }) => {
         const targetSocket = getSocketByUserId(recipientId);
         if (targetSocket) {
-            targetSocket.emit('message', {
-                from: socket.userId,
-                recipientId,
-                message,
-            });
+            targetSocket.emit('message', { recipientId, chat });
         }
     });
 
-    socket.on('read messages', ({message}) => {
-        const targetSocket = getSocketByUserId(message.sender.id);
+    socket.on('read messages', ({userId, chat, lastReadMessageId}) => {
+        const targetSocket = getSocketByUserId(userId);
         if (targetSocket) {
             targetSocket.emit('read messages', {
-                from: socket.userId,
-                message,
+                userId,
+                chat,
+                lastReadMessageId,
             });
         }
     });
 
-    socket.on('create chat', ({chat}) => {
-        const targetSocket = getSocketByUserId(chat.user.id);
+    socket.on('delete messages', ({userId, chat}) => {
+        const targetSocket = getSocketByUserId(userId);
+        if (targetSocket) {
+            targetSocket.emit('delete messages', {
+                from: userId,
+                chat,
+            });
+        }
+    });
+
+    socket.on('create chat', ({userId, chat}) => {
+        const targetSocket = getSocketByUserId(userId);
         if (targetSocket) {
             targetSocket.emit('create chat', {
-                from: chat.user.id,
+                from: userId,
+                chat
+            });
+        }
+    });
+
+    socket.on('leave chat', ({participantId, logs, chat}) => {
+        const targetSocket = getSocketByUserId(participantId);
+        if (targetSocket) {
+            targetSocket.emit('leave chat', {
+                from: participantId,
+                logs,
+                chat
+            });
+        }
+    });
+
+    socket.on('drop chat', ({participantId, chat}) => {
+        const targetSocket = getSocketByUserId(participantId);
+        if (targetSocket) {
+            targetSocket.emit('drop chat', {
+                from: participantId,
                 chat
             });
         }
