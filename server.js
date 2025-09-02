@@ -1,142 +1,124 @@
 const httpServer = require("http").createServer();
 
-const hostname = "192.168.1.216";
-// const hostname = "localhost";
+const hostname = "192.168.100.100";
 const PORT = process.env.PORT || 3000;
 const clientPort = 4200;
 
 const io = require("socket.io")(httpServer, {
-    cors: {
-        origin: `http://${hostname}:${clientPort}`,
-    },
+  cors: {
+    origin: `http://${hostname}:${clientPort}`,
+  },
 });
-const { v4: uuidv4 } = require('uuid');
 
-const sessionStore = new Map();
+const users = new Map();
 
 io.use((socket, next) => {
-    const { sessionId, userId } = socket.handshake.auth;
+  const userId  = socket.handshake.auth.userId;
 
-    if (!userId) {
-        return next(new Error("Invalid userId"));
-    }
+  if (!userId) {
+    return next(new Error("Invalid userId"));
+  }
 
-    let session;
+  socket.userId = userId;
 
-    if (sessionId) {
-        session = sessionStore.get(sessionId);
-    }
-
-    if (session) {
-        socket.sessionId = sessionId;
-        socket.userId = session.userId;
-        sessionStore.set(sessionId, { ...session, connected: true });
-    } else {
-        const newSessionId = uuidv4();
-        socket.sessionId = newSessionId;
-        socket.userId = userId;
-        sessionStore.set(newSessionId, { userId, connected: true });
-        socket.emit('session', { sessionId: newSessionId, userId });
-    }
-
-    next();
+  next();
 });
 
 io.on('connection', (socket) => {
-    refreshUsers();
+  const userId = socket.userId;
+  if (!users.has(userId)) {
+    users.set(userId, new Set());
+  }
+  users.get(userId).add(socket.id);
 
-    socket.broadcast.emit("user connected", {
-        userId: socket.userId,
-        connected: true,
-    });
-    console.log(sessionStore.values())
+  console.log(users);
 
-    socket.on('message', ({recipientId, chat }) => {
-        const targetSocket = getSocketByUserId(recipientId);
-        if (targetSocket) {
-            targetSocket.emit('message', { recipientId, chat });
-        }
-    });
+  socket.broadcast.emit("user connected", {
+    userId: socket.userId,
+    connected: true,
+  });
 
-    socket.on('read messages', ({userId, chat, lastReadMessageId}) => {
-        const targetSocket = getSocketByUserId(userId);
-        if (targetSocket) {
-            targetSocket.emit('read messages', {
-                userId,
-                chat,
-                lastReadMessageId,
-            });
-        }
-    });
+  socket.on('message', ({ recipientId, message }) => {
+    const sockets = users.get(recipientId);
+    sockets?.forEach(socketId => {
+      io.to(socketId).emit('message', {
+        recipientId,
+        message
+      });
+    })
+  });
 
-    socket.on('delete messages', ({userId, chat}) => {
-        const targetSocket = getSocketByUserId(userId);
-        if (targetSocket) {
-            targetSocket.emit('delete messages', {
-                from: userId,
-                chat,
-            });
-        }
+  socket.on('read messages', ({ userId, reader }) => {
+    const sockets = users.get(userId);
+    sockets?.forEach((socketId) => {
+      io.to(socketId).emit('read messages', {
+        userId,
+        reader,
+      });
     });
+  });
 
-    socket.on('create chat', ({userId, chat}) => {
-        const targetSocket = getSocketByUserId(userId);
-        if (targetSocket) {
-            targetSocket.emit('create chat', {
-                from: userId,
-                chat
-            });
-        }
-    });
+  socket.on('delete messages', ({ userId, chatId, messageIds }) => {
+    const recipientSockets = users.get(userId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('delete messages', {
+          chatId,
+          messageIds,
+        });
+      });
+    }
+  });
 
-    socket.on('leave chat', ({participantId, logs, chat}) => {
-        const targetSocket = getSocketByUserId(participantId);
-        if (targetSocket) {
-            targetSocket.emit('leave chat', {
-                from: participantId,
-                logs,
-                chat
-            });
-        }
-    });
+  socket.on('create chat', ({ userId: targetUserId, chat }) => {
+    const recipientSockets = users.get(targetUserId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('create chat', {
+          from: targetUserId,
+          chat
+        });
+      });
+    }
+  });
 
-    socket.on('drop chat', ({participantId, chat}) => {
-        const targetSocket = getSocketByUserId(participantId);
-        if (targetSocket) {
-            targetSocket.emit('drop chat', {
-                from: participantId,
-                chat
-            });
-        }
-    });
+  socket.on('leave chat', ({ participantId, logs, chat }) => {
+    const recipientSockets = users.get(participantId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('leave chat', {
+          from: participantId,
+          logs,
+          chat
+        });
+      });
+    }
+  });
 
-    socket.on("disconnect", async () => {
-        const sockets = await io.in(socket.userId).allSockets();
-        if (sockets.size === 0) {
-            const session = sessionStore.get(socket.sessionId);
-            if (session) {
-                sessionStore.set(socket.sessionId, { ...session, connected: false });
-            }
-            refreshUsers();
-        }
-    });
+  socket.on('drop chat', ({ participantId, chat }) => {
+    const recipientSockets = users.get(participantId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('drop chat', {
+          from: participantId,
+          chat
+        });
+      });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    const userSockets = users.get(socket.userId);
+    if (userSockets) {
+      userSockets.delete(socket.id);
+      if (userSockets.size === 0) {
+        users.delete(socket.userId);
+      }
+    }
+  });
 });
 
-function getSocketByUserId(userId) {
-    for (const socket of io.sockets.sockets.values()) {
-        if (socket.handshake.auth.userId === userId.toString()) {
-            return socket;
-        }
-    }
-    return null;
-}
 
-function refreshUsers() {
-    const sessions = Array.from(sessionStore.values());
-    const users = sessions.map(({ userId, connected }) => ({ userId, connected }));
-    io.emit('users', users);
-}
-
-httpServer.listen(PORT, hostname, () =>
-    console.log(`server listening at http://${hostname}:${PORT}`)
-);
+httpServer.listen(PORT, hostname, () => {
+  console.log(`Server listening at http://${hostname}:${PORT}`);
+});
