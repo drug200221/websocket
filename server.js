@@ -82,6 +82,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('edit chat', ({ userId: targetUserId, chat }) => {
+    const recipientSockets = users.get(targetUserId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('edit chat', {
+          from: targetUserId,
+          chat
+        });
+      });
+    }
+  });
+
+
   socket.on('leave chat', ({ participantId, logs, chat }) => {
     const recipientSockets = users.get(participantId);
     if (recipientSockets) {
