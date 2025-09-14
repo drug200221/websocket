@@ -1,6 +1,6 @@
 const httpServer = require("http").createServer();
 
-const hostname = "192.168.100.100";
+const hostname = "localhost";
 const PORT = process.env.PORT || 3000;
 const clientPort = 4200;
 
@@ -94,6 +94,55 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('add participant', ({ userId, chat, participant }) => {
+    const recipientSockets = users.get(userId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('add participant', {
+          from: userId,
+          chat,
+          participant
+        });
+      });
+    }
+  });
+
+  socket.on('delete participant', ({ userId, chat, participant }) => {
+    const recipientSockets = users.get(userId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('delete participant', {
+          from: userId,
+          chat,
+          participant
+        });
+      });
+    }
+  });
+
+  socket.on('promote moderator', ({ userId, chat, participant }) => {
+    const recipientSockets = users.get(userId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('promote moderator', {
+          chat,
+          participant
+        });
+      });
+    }
+  });
+
+  socket.on('demote moderator', ({ userId, chat, participant }) => {
+    const recipientSockets = users.get(userId);
+    if (recipientSockets) {
+      recipientSockets.forEach((socketId) => {
+        io.to(socketId).emit('demote moderator', {
+          chat,
+          participant
+        });
+      });
+    }
+  });
 
   socket.on('leave chat', ({ participantId, logs, chat }) => {
     const recipientSockets = users.get(participantId);
