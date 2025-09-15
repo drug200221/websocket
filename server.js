@@ -99,7 +99,6 @@ io.on('connection', (socket) => {
     if (recipientSockets) {
       recipientSockets.forEach((socketId) => {
         io.to(socketId).emit('add participant', {
-          from: userId,
           chat,
           participant
         });
@@ -107,12 +106,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('delete participant', ({ userId, chat, participant }) => {
+  socket.on('deleteParticipant', ({ userId, chat, participant }) => {
     const recipientSockets = users.get(userId);
     if (recipientSockets) {
       recipientSockets.forEach((socketId) => {
-        io.to(socketId).emit('delete participant', {
-          from: userId,
+        io.to(socketId).emit('deleteParticipant', {
           chat,
           participant
         });
@@ -120,11 +118,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('promote moderator', ({ userId, chat, participant }) => {
+  socket.on('promoteParticipant', ({ userId, chat, participant }) => {
     const recipientSockets = users.get(userId);
     if (recipientSockets) {
       recipientSockets.forEach((socketId) => {
-        io.to(socketId).emit('promote moderator', {
+        io.to(socketId).emit('promoteParticipant', {
           chat,
           participant
         });
@@ -132,11 +130,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('demote moderator', ({ userId, chat, participant }) => {
+  socket.on('demoteParticipant', ({ userId, chat, participant }) => {
     const recipientSockets = users.get(userId);
     if (recipientSockets) {
       recipientSockets.forEach((socketId) => {
-        io.to(socketId).emit('demote moderator', {
+        io.to(socketId).emit('demoteParticipant', {
           chat,
           participant
         });
